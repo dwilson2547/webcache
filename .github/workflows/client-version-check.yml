@@ -1,0 +1,83 @@
+name: Client Version Check
+
+on:
+  pull_request:
+    paths:
+      - "client/**"
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: Verify client version is incremented
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install packaging library
+        run: pip install packaging==24.2
+
+      - name: Extract versions and compare
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          python3 << 'PYEOF'
+          import os, re, subprocess, sys
+          from packaging.version import Version, InvalidVersion
+
+          base_ref = os.environ["BASE_REF"]
+
+          # Read PR version from working tree
+          try:
+              with open("client/setup.py") as f:
+                  pr_content = f.read()
+          except OSError as e:
+              print(f"::error file=client/setup.py::Could not read client/setup.py: {e}")
+              sys.exit(1)
+
+          m = re.search(r"version\s*=\s*[\"']([^\"']+)[\"']", pr_content)
+          if not m:
+              print("::error file=client/setup.py::Could not find version field in PR branch client/setup.py")
+              sys.exit(1)
+          pr_version_str = m.group(1).strip()
+
+          # Read base branch version via git
+          result = subprocess.run(
+              ["git", "show", f"origin/{base_ref}:client/setup.py"],
+              capture_output=True, text=True
+          )
+          if result.returncode != 0:
+              print(f"::error::Could not fetch client/setup.py from base branch "
+                    f"'origin/{base_ref}'. Ensure the checkout has full history.")
+              sys.exit(1)
+
+          base_content = result.stdout
+          m = re.search(r"version\s*=\s*[\"']([^\"']+)[\"']", base_content)
+          if not m:
+              print("::error::Could not find version field in base branch client/setup.py")
+              sys.exit(1)
+          base_version_str = m.group(1).strip()
+
+          print(f"Base branch version: {base_version_str}")
+          print(f"PR branch version:   {pr_version_str}")
+
+          try:
+              base = Version(base_version_str)
+              pr = Version(pr_version_str)
+          except InvalidVersion as e:
+              print(f"::error file=client/setup.py::Invalid version string: {e}")
+              sys.exit(1)
+
+          if pr <= base:
+              print(f"::error file=client/setup.py::Client library version must be "
+                    f"incremented. PR version ({pr}) is not greater than base version "
+                    f"({base}). Update the version field in client/setup.py.")
+              sys.exit(1)
+
+          print(f"Version correctly incremented: {base} -> {pr}")
+          PYEOF
