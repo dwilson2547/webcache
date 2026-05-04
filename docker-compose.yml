@@ -1,0 +1,14 @@
+services:
+  webcache:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      STORAGE_BACKEND: local
+      LOCAL_STORAGE_PATH: /data/cache
+      DATABASE_URL: sqlite:////data/webcache.db
+    volumes:
+      # Real host path so cached files survive container rebuilds.
+      # Change the left side to any directory you prefer.
+      - ./data:/data
+    restart: unless-stopped
