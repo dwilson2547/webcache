@@ -8,8 +8,8 @@ from .base import BaseStorage
 class S3Storage(BaseStorage):
     def __init__(self) -> None:
         kwargs: dict = {
-            "aws_access_key_id": settings.s3_access_key,
-            "aws_secret_access_key": settings.s3_secret_key,
+            "aws_access_key_id": settings.aws_access_key_id,
+            "aws_secret_access_key": settings.aws_secret_access_key,
             "region_name": settings.s3_region,
         }
         if settings.s3_endpoint_url:
@@ -17,33 +17,37 @@ class S3Storage(BaseStorage):
         self._client = boto3.client("s3", **kwargs)
         self._bucket = settings.s3_bucket
 
-    def _key(self, content_hash: str) -> str:
-        return f"{content_hash}.lz4"
+    def _key(self, bucket: str, content_hash: str, prefix: str | None = None) -> str:
+        parts = [bucket]
+        if prefix:
+            parts.append(prefix)
+        parts.append(f"{content_hash}.lz4")
+        return "/".join(parts)
 
-    def write(self, content_hash: str, compressed_data: bytes) -> None:
+    def write(self, bucket: str, content_hash: str, compressed_data: bytes, prefix: str | None = None) -> None:
         self._client.put_object(
             Bucket=self._bucket,
-            Key=self._key(content_hash),
+            Key=self._key(bucket, content_hash, prefix),
             Body=compressed_data,
         )
 
-    def read(self, content_hash: str) -> bytes:
+    def read(self, bucket: str, content_hash: str, prefix: str | None = None) -> bytes:
         try:
             response = self._client.get_object(
-                Bucket=self._bucket, Key=self._key(content_hash)
+                Bucket=self._bucket, Key=self._key(bucket, content_hash, prefix)
             )
             return response["Body"].read()
         except ClientError as exc:
             if exc.response["Error"]["Code"] in ("NoSuchKey", "404"):
-                raise FileNotFoundError(f"No S3 object for hash {content_hash}") from exc
+                raise FileNotFoundError(f"No S3 object for {bucket}/{content_hash}") from exc
             raise
 
-    def delete(self, content_hash: str) -> None:
-        self._client.delete_object(Bucket=self._bucket, Key=self._key(content_hash))
+    def delete(self, bucket: str, content_hash: str, prefix: str | None = None) -> None:
+        self._client.delete_object(Bucket=self._bucket, Key=self._key(bucket, content_hash, prefix))
 
-    def exists(self, content_hash: str) -> bool:
+    def exists(self, bucket: str, content_hash: str, prefix: str | None = None) -> bool:
         try:
-            self._client.head_object(Bucket=self._bucket, Key=self._key(content_hash))
+            self._client.head_object(Bucket=self._bucket, Key=self._key(bucket, content_hash, prefix))
             return True
         except ClientError:
             return False

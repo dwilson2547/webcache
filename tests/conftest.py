@@ -82,6 +82,11 @@ def client(app):
 # MinIO testcontainer (session-scoped so the container starts once)
 # ---------------------------------------------------------------------------
 
+def _minio_endpoint(container) -> str:
+    cfg = container.get_config()
+    return f"http://{cfg['endpoint']}"
+
+
 @pytest.fixture(scope="session")
 def minio_container():
     """Start a MinIO container for the session. Requires Docker."""
@@ -107,14 +112,18 @@ def s3_app(minio_container, tmp_path: Path):
     from app.storage.s3 import S3Storage
 
     bucket = "test-webcache"
+    endpoint = _minio_endpoint(minio_container)
     s3 = boto3.client(
         "s3",
-        endpoint_url=minio_container.get_url(),
+        endpoint_url=endpoint,
         aws_access_key_id=minio_container.access_key,
         aws_secret_access_key=minio_container.secret_key,
         region_name="us-east-1",
     )
-    s3.create_bucket(Bucket=bucket)
+    try:
+        s3.create_bucket(Bucket=bucket)
+    except s3.exceptions.BucketAlreadyOwnedByYou:
+        pass
 
     # Patch settings so S3Storage picks up the test MinIO instance
     import app.config as cfg_module
@@ -123,9 +132,9 @@ def s3_app(minio_container, tmp_path: Path):
     cfg_module.settings = cfg_module.Settings(
         storage_backend="s3",
         s3_bucket=bucket,
-        s3_endpoint_url=minio_container.get_url(),
-        s3_access_key=minio_container.access_key,
-        s3_secret_key=minio_container.secret_key,
+        s3_endpoint_url=endpoint,
+        aws_access_key_id=minio_container.access_key,
+        aws_secret_access_key=minio_container.secret_key,
     )
 
     storage = S3Storage()

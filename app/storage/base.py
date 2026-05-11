@@ -3,17 +3,17 @@ from abc import ABC, abstractmethod
 
 class BaseStorage(ABC):
     @abstractmethod
-    def write(self, content_hash: str, compressed_data: bytes) -> None:
-        """Write compressed page data; filename is content_hash."""
+    def write(self, bucket: str, content_hash: str, compressed_data: bytes, prefix: str | None = None) -> None:
+        """Write compressed page data."""
 
     @abstractmethod
-    def read(self, content_hash: str) -> bytes:
-        """Return compressed bytes for content_hash. Raise FileNotFoundError if absent."""
+    def read(self, bucket: str, content_hash: str, prefix: str | None = None) -> bytes:
+        """Return compressed bytes. Raise FileNotFoundError if absent."""
 
     @abstractmethod
-    def delete(self, content_hash: str) -> None:
+    def delete(self, bucket: str, content_hash: str, prefix: str | None = None) -> None:
         """Delete stored file. No-op if it doesn't exist."""
 
     @abstractmethod
-    def exists(self, content_hash: str) -> bool:
-        """Return True if a file for content_hash exists."""
+    def exists(self, bucket: str, content_hash: str, prefix: str | None = None) -> bool:
+        """Return True if a file for bucket/[prefix/]content_hash exists."""

@@ -21,9 +21,13 @@ class Settings(BaseSettings):
     # S3 / MinIO (only used when storage_backend = s3)
     s3_bucket: str = "webcache"
     s3_endpoint_url: str | None = None  # None → AWS; set to MinIO URL for self-hosted
-    s3_access_key: str = ""
-    s3_secret_key: str = ""
+    aws_access_key_id: str = ""
+    aws_secret_access_key: str = ""
     s3_region: str = "us-east-1"
+
+    # Browserless (used by /render endpoint)
+    browserless_url: str = "http://browserless:3000"
+    browserless_token: str | None = None
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

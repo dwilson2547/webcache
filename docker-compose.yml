@@ -7,8 +7,23 @@ services:
       STORAGE_BACKEND: local
       LOCAL_STORAGE_PATH: /data/cache
       DATABASE_URL: sqlite:////data/webcache.db
+      BROWSERLESS_URL: http://browserless:3000
+      # BROWSERLESS_TOKEN: your-token-here
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://host.docker.internal:4318
+      OTEL_SERVICE_NAME: webcache
     volumes:
-      # Real host path so cached files survive container rebuilds.
-      # Change the left side to any directory you prefer.
       - ./data:/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - browserless
+    restart: unless-stopped
+
+  browserless:
+    image: browserless/chrome:latest
+    ports:
+      - "4000:3000"
+    environment:
+      MAX_CONCURRENT_SESSIONS: "5"
+      CONNECTION_TIMEOUT: "60000"
     restart: unless-stopped

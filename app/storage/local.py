@@ -8,22 +8,27 @@ class LocalStorage(BaseStorage):
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
-    def _path(self, content_hash: str) -> Path:
-        return self.base_path / f"{content_hash}.lz4"
+    def _path(self, bucket: str, content_hash: str, prefix: str | None = None) -> Path:
+        base = self.base_path / bucket
+        if prefix:
+            base = base / prefix
+        return base / f"{content_hash}.lz4"
 
-    def write(self, content_hash: str, compressed_data: bytes) -> None:
-        self._path(content_hash).write_bytes(compressed_data)
+    def write(self, bucket: str, content_hash: str, compressed_data: bytes, prefix: str | None = None) -> None:
+        p = self._path(bucket, content_hash, prefix)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(compressed_data)
 
-    def read(self, content_hash: str) -> bytes:
-        p = self._path(content_hash)
+    def read(self, bucket: str, content_hash: str, prefix: str | None = None) -> bytes:
+        p = self._path(bucket, content_hash, prefix)
         if not p.exists():
-            raise FileNotFoundError(f"No cache file for hash {content_hash}")
+            raise FileNotFoundError(f"No cache file for {bucket}/{content_hash}")
         return p.read_bytes()
 
-    def delete(self, content_hash: str) -> None:
-        p = self._path(content_hash)
+    def delete(self, bucket: str, content_hash: str, prefix: str | None = None) -> None:
+        p = self._path(bucket, content_hash, prefix)
         if p.exists():
             p.unlink()
 
-    def exists(self, content_hash: str) -> bool:
-        return self._path(content_hash).exists()
+    def exists(self, bucket: str, content_hash: str, prefix: str | None = None) -> bool:
+        return self._path(bucket, content_hash, prefix).exists()

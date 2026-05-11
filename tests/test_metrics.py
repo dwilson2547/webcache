@@ -1,16 +1,11 @@
 """Tests for custom Prometheus metrics."""
 
-from datetime import datetime, timezone
-
-LOOKUP_TIME = datetime(2024, 1, 1, tzinfo=timezone.utc).isoformat()
-
 
 def _page(n: int) -> dict:
     return {
         "url": f"https://example.com/metrics-test/{n}",
         "content": f"<html>unique content {n}</html>",
         "client_name": "metrics_tester",
-        "lookup_time": LOOKUP_TIME,
     }
 
 
