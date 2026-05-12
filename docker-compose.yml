@@ -1,5 +1,6 @@
 services:
   webcache:
+    image: dwilson2547/webcache:latest
     build: .
     ports:
       - "8000:8000"
